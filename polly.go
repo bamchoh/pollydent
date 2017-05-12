@@ -82,24 +82,32 @@ func (p *Polly) ReadAloud(msg string) (err error) {
 	return
 }
 
-// InitPlugin is plugin
-func (p *Polly) InitPlugin(loadFile string) (err error) {
+// NewPolly news Polly structure
+func NewPolly(logger *log.Logger, loadFile string) (*Polly, error) {
+	var err error
+
+	p := &Polly{
+		Logger:    logger,
+		SendMutex: new(sync.Mutex),
+		PlayMutex: new(sync.Mutex),
+	}
+
 	basedir := filepath.Dir(os.Args[0])
 	filepath := filepath.Join(basedir, loadFile)
 	f, err := os.Open(filepath)
 	if err != nil {
 		log.Println(err)
-		return err
+		return nil, err
 	}
 	defer f.Close()
 
 	p.Config, err = p.load(f)
 	if err != nil {
 		log.Println(err)
-		return err
+		return nil, err
 	}
 
-	return
+	return p, err
 }
 
 func (p *Polly) load(r io.Reader) (*PollyConfig, error) {
