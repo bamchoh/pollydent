@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/polly"
-	"github.com/bamchoh/nagome-polly/player"
+	"github.com/bamchoh/pollydent/player"
 
 	"errors"
 	"io"
@@ -52,7 +52,7 @@ func (p *Polly) sendAws(msg string, speed int) (resp *polly.SynthesizeSpeechOutp
 func (p *Polly) play(resp *polly.SynthesizeSpeechOutput) (err error) {
 	p.PlayMutex.Lock()
 	defer p.PlayMutex.Unlock()
-	err = player.Play(resp)
+	err = player.Play(resp.AudioStream)
 
 	if err != nil {
 		p.Logger.Println(err)
