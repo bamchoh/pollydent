@@ -1,17 +1,19 @@
 package pollydent
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/polly"
-	"github.com/bamchoh/pollydent/player"
+	"github.com/hajimehoshi/oto"
 
 	"errors"
 	"io"
@@ -20,12 +22,18 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var (
+	sampleRate    = 16000
+	numOfChanel   = 1
+	byteParSample = 2
+)
+
 // PollyConfig is configuration structure for Polly
 type PollyConfig struct {
 	AccessKey string `yaml:"access_key"`
 	SecretKey string `yaml:"secret_key"`
 	Region    string `yaml:"region"`
-	Format    string `yaml:"format"`
+	Format    string // Fixed pcm
 	Voice     string `yaml:"voice"`
 	TextType  string `yaml:"text_type"`
 	Polly     *polly.Polly
@@ -52,16 +60,59 @@ func (p *Polly) sendAws(msg string, speed int) (resp *polly.SynthesizeSpeechOutp
 func (p *Polly) play(resp *polly.SynthesizeSpeechOutput) (err error) {
 	p.PlayMutex.Lock()
 	defer p.PlayMutex.Unlock()
-	err = player.Play(resp.AudioStream)
 
-	if err != nil {
-		p.Logger.Println(err)
+	totalData := make([]byte, 0)
+	for {
+		var n int
+		data := make([]byte, 65535)
+		if n, err = resp.AudioStream.Read(data); err != nil {
+			if err != io.EOF {
+				p.Logger.Println("resp.AudioStream")
+				p.Logger.Println(err)
+				return
+			}
+			totalData = append(totalData, data[:n]...)
+			break
+		} else {
+			totalData = append(totalData, data[:n]...)
+		}
 	}
+
+	player, err := oto.NewPlayer(sampleRate, numOfChanel, byteParSample, len(totalData))
+	if err != nil {
+		p.Logger.Println("oto.NewPlayer")
+		p.Logger.Println(err)
+		return
+	}
+	defer player.Close()
+
+	timeCh := make(chan int, 1)
+
+	go func() {
+		t := time.Second * time.Duration(1+len(totalData)/(sampleRate*numOfChanel*byteParSample))
+		time.Sleep(t)
+		timeCh <- 1
+	}()
+
+	if _, err = player.Write(totalData); err != nil {
+		p.Logger.Println("io.Copy")
+		p.Logger.Println(err)
+		return
+	}
+
+	<-timeCh
+
 	return
 }
 
 // ReadAloud reads aloud msg by Polly
 func (p *Polly) ReadAloud(msg string) (err error) {
+	if msgLen := len([]rune(msg)); msgLen > 1500 {
+		errMsg := "Message size is %d. Please pass with the length of 1500 or less."
+		err = fmt.Errorf(errMsg, msgLen)
+		p.Logger.Println(err)
+		return err
+	}
 	p.Counter++
 	defer func() { p.Counter-- }()
 
@@ -142,9 +193,7 @@ func (p *Polly) load(r io.Reader) (*PollyConfig, error) {
 		pc.Region = "us-west-2"
 	}
 
-	if pc.Format == "" {
-		pc.Format = "mp3"
-	}
+	pc.Format = "pcm"
 
 	if pc.Voice == "" {
 		pc.Voice = "Mizuki"
