@@ -14,8 +14,8 @@ func main() {
 		panic(err)
 	}
 	p := polly.NewPollydent(
-		"<ACCESS_KEY>",
-		"<SECRET_KEY>",
+		"AKIAJPPD4H2CRUAVK5YA",
+		"IalFMw0iScnuFBmwpc+TWSPq6aSL6x8ukGik9okN",
 		config,
 	)
 

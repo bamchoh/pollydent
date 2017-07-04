@@ -39,6 +39,10 @@ func NewPollydent(accessKey, secretKey string, config *PollyConfig) *Pollydent {
 	creds := credentials.NewStaticCredentials(accessKey, secretKey, "")
 	sess := session.New(&aws.Config{Credentials: creds})
 
+	if config == nil {
+		config = defaultConfig()
+	}
+
 	return &Pollydent{
 		config:    config,
 		playMutex: new(sync.Mutex),
@@ -61,9 +65,9 @@ func (p *Pollydent) SendToPolly(config SpeechParams) (io.Reader, error) {
 	pol := polly.New(p.sess, aws.NewConfig().WithRegion(p.config.Region))
 
 	params := &polly.SynthesizeSpeechInput{
-		OutputFormat: aws.String(p.config.format),
+		OutputFormat: aws.String(p.config.Format),
 		Text:         aws.String(text),
-		TextType:     aws.String(p.config.textType),
+		TextType:     aws.String(p.config.TextType),
 		VoiceId:      aws.String(config.Voice),
 	}
 
