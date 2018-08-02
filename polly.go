@@ -16,12 +16,6 @@ import (
 	"io"
 )
 
-var (
-	sampleRate    = 16000
-	numOfChanel   = 1
-	byteParSample = 2
-)
-
 type SpeechParams struct {
 	Message string
 	Voice   string
@@ -30,9 +24,14 @@ type SpeechParams struct {
 
 // Pollydent is structure to manage read aloud
 type Pollydent struct {
-	config    *PollyConfig
-	playMutex *sync.Mutex
-	sess      *session.Session
+	config      *PollyConfig
+	playMutex   *sync.Mutex
+	sess        *session.Session
+	audioConfig AudioConfig
+}
+
+func NewPollydentWithCloudTextToSpeech(config *PollyConfig) (*Pollydent, error) {
+	return nil, nil
 }
 
 // NewPollydent news Polly structure
@@ -49,11 +48,13 @@ func NewPollydent(accessKey, secretKey string, config *PollyConfig) (*Pollydent,
 	}
 
 	return &Pollydent{
-		config:    config,
-		playMutex: new(sync.Mutex),
-		sess:      sess,
+		config:      config,
+		playMutex:   new(sync.Mutex),
+		sess:        sess,
+		audioConfig: &PollyAudioConfig{},
 	}, nil
 }
+
 func (p *Pollydent) SendToPolly(config SpeechParams) (io.Reader, error) {
 	var err error
 
@@ -102,7 +103,11 @@ func (p *Pollydent) Play(reader io.Reader) (err error) {
 		}
 	}
 
-	player, err := oto.NewPlayer(sampleRate, numOfChanel, byteParSample, len(totalData))
+	player, err := oto.NewPlayer(
+		p.audioConfig.SampleRate(),
+		p.audioConfig.NumOfChanel(),
+		p.audioConfig.ByteParSample(),
+		len(totalData))
 	if err != nil {
 		return
 	}
@@ -111,7 +116,10 @@ func (p *Pollydent) Play(reader io.Reader) (err error) {
 	timeCh := make(chan int, 1)
 
 	go func() {
-		t := time.Second * time.Duration(1+len(totalData)/(sampleRate*numOfChanel*byteParSample))
+		sr := p.audioConfig.SampleRate()
+		noc := p.audioConfig.NumOfChanel()
+		b := p.audioConfig.ByteParSample()
+		t := time.Second * time.Duration(1+len(totalData)/(sr*noc*b))
 		time.Sleep(t)
 		timeCh <- 1
 	}()
