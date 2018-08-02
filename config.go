@@ -51,7 +51,7 @@ func Load(filepath string) (*PollyConfig, error) {
 
 	f, err := os.Open(filepath)
 	if err != nil {
-		return nil, err
+		return defaultConfig(), err
 	}
 	defer f.Close()
 

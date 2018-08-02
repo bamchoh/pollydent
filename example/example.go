@@ -3,21 +3,22 @@ package main
 import (
 	"io"
 	"log"
+	"os"
 	"sync"
 
 	polly "github.com/bamchoh/pollydent"
 )
 
 func main() {
-	config, err := polly.Load("pollydent.yml")
+	config, _ := polly.Load("pollydent.yml")
+	p, err := polly.NewPollydent(
+		os.Getenv("AWS_ACCESS_KEY"),
+		os.Getenv("AWS_SECRET_KEY"),
+		config,
+	)
 	if err != nil {
 		panic(err)
 	}
-	p := polly.NewPollydent(
-		"AKIAJPPD4H2CRUAVK5YA",
-		"IalFMw0iScnuFBmwpc+TWSPq6aSL6x8ukGik9okN",
-		config,
-	)
 
 	// Example 1
 	// Read Aloud Example

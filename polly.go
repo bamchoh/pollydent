@@ -1,6 +1,7 @@
 package pollydent
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -35,7 +36,11 @@ type Pollydent struct {
 }
 
 // NewPollydent news Polly structure
-func NewPollydent(accessKey, secretKey string, config *PollyConfig) *Pollydent {
+func NewPollydent(accessKey, secretKey string, config *PollyConfig) (*Pollydent, error) {
+	if accessKey == "" || secretKey == "" {
+		return nil, errors.New("Access key or Secret key are invalid")
+	}
+
 	creds := credentials.NewStaticCredentials(accessKey, secretKey, "")
 	sess := session.New(&aws.Config{Credentials: creds})
 
@@ -47,7 +52,7 @@ func NewPollydent(accessKey, secretKey string, config *PollyConfig) *Pollydent {
 		config:    config,
 		playMutex: new(sync.Mutex),
 		sess:      sess,
-	}
+	}, nil
 }
 func (p *Pollydent) SendToPolly(config SpeechParams) (io.Reader, error) {
 	var err error
