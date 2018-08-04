@@ -21,17 +21,17 @@ func (c *PollyAudioConfig) ByteParSample() int {
 	return 2
 }
 
-type CTTSAudioConfig struct {
+type GCTTSAudioConfig struct {
 }
 
-func (c *CTTSAudioConfig) SampleRate() int {
+func (c *GCTTSAudioConfig) SampleRate() int {
 	return 16000
 }
 
-func (c *CTTSAudioConfig) NumOfChanel() int {
+func (c *GCTTSAudioConfig) NumOfChanel() int {
 	return 1
 }
 
-func (c *CTTSAudioConfig) ByteParSample() int {
+func (c *GCTTSAudioConfig) ByteParSample() int {
 	return 2
 }

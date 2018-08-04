@@ -1,9 +1,14 @@
 package pollydent
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -60,6 +65,88 @@ func (p *PollySpeaker) Send(config SpeechParams) (io.Reader, error) {
 	return resp.AudioStream, nil
 }
 
+type GCTTSSpeaker struct {
+	config *PollyConfig
+	token  string
+}
+
+func (p *GCTTSSpeaker) Send(config SpeechParams) (io.Reader, error) {
+	var err error
+
+	if config.Speed == 0 {
+		config.Speed = p.config.Speed
+	}
+
+	if config.Voice == "" {
+		config.Voice = p.config.Voice
+	}
+
+	text := `<speak><prosody rate="` + strconv.Itoa(config.Speed) + `%"><![CDATA[` + config.Message + `]]></prosody></speak>`
+
+	var v voice
+	switch config.Voice {
+	case "Mizuki":
+		v = voice{
+			LanguageCode: "ja-JP",
+			Name:         "ja-JP-Wavenet-A",
+			SsmlGender:   "FEMALE",
+		}
+	default:
+		v = voice{
+			LanguageCode: "en-US",
+			Name:         "en-US-Wavenet-C",
+			SsmlGender:   "FEMALE",
+		}
+	}
+
+	reqData := Request{
+		Input: input{
+			SSML: text,
+		},
+		Voice: v,
+		AudioConfig: audioConfig{
+			AudioEncoding:   "LINEAR16",
+			SampleRateHertz: 16000,
+		},
+	}
+	body, err := json.Marshal(reqData)
+	if err != nil {
+		return nil, err
+	}
+
+	token := getToken()
+
+	req, err := http.NewRequest(
+		"POST",
+		"https://texttospeech.googleapis.com/v1beta1/text:synthesize",
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	dec := json.NewDecoder(resp.Body)
+	var resData Response
+	err = dec.Decode(&resData)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(resData.AudioContent))
+
+	return reader, nil
+}
+
 // Pollydent is structure to manage read aloud
 type Pollydent struct {
 	playMutex   *sync.Mutex
@@ -68,7 +155,12 @@ type Pollydent struct {
 }
 
 func NewPollydentWithCloudTextToSpeech(config *PollyConfig) (*Pollydent, error) {
-	return nil, nil
+	token := getToken()
+	return &Pollydent{
+		playMutex:   new(sync.Mutex),
+		audioConfig: &GCTTSAudioConfig{},
+		speaker:     &GCTTSSpeaker{config, token},
+	}, nil
 }
 
 // NewPollydent news Polly structure
