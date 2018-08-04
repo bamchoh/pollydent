@@ -1,10 +1,11 @@
 # pollydent
 
-pollydent is a library to speech to text via Amazon Polly.
+pollydent is a wrapper of text-to-speech for Amazon Polly and Google Cloud Text-To-Speech
 
 # Requirement
 
-pollydent needs AWS account. Please sign up AWS.
+pollydent needs AWS account, and GCP account. Please sign up AWS, and GCP.
+if you want to use Google Cloud Text-To-Speech, please install `gcloud` in your PC.
 Please install SoX if you are using Linux or OS X.
 
 # Install
@@ -36,4 +37,8 @@ func main() {
 # ACCESS_KEY, SECRET_KEY
 
 If you have no these keys, please create according to https://docs.aws.amazon.com/general/latest/gr/managing-aws-access-keys.html
+
+# How to enable Google Cloud Text-To-Speech
+
+Please see Quick Start guide, https://cloud.google.com/text-to-speech/docs/quickstart-protocol
 
