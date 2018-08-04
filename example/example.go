@@ -11,7 +11,7 @@ import (
 
 func main() {
 	config, _ := polly.Load("pollydent.yml")
-	p, err := polly.NewPollydent(
+	p, err := polly.NewPollydentWithPolly(
 		os.Getenv("AWS_ACCESS_KEY"),
 		os.Getenv("AWS_SECRET_KEY"),
 		config,
@@ -39,7 +39,7 @@ func main() {
 	var wg sync.WaitGroup
 	for _, param := range params {
 		wg.Add(1)
-		strm, err = p.SendToPolly(param)
+		strm, err = p.SendToServer(param)
 		if err != nil {
 			log.Fatal(err)
 		}

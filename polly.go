@@ -22,40 +22,16 @@ type SpeechParams struct {
 	Speed   int
 }
 
-// Pollydent is structure to manage read aloud
-type Pollydent struct {
-	config      *PollyConfig
-	playMutex   *sync.Mutex
-	sess        *session.Session
-	audioConfig AudioConfig
+type Speaker interface {
+	Send(SpeechParams) (io.Reader, error)
 }
 
-func NewPollydentWithCloudTextToSpeech(config *PollyConfig) (*Pollydent, error) {
-	return nil, nil
+type PollySpeaker struct {
+	config *PollyConfig
+	sess   *session.Session
 }
 
-// NewPollydent news Polly structure
-func NewPollydent(accessKey, secretKey string, config *PollyConfig) (*Pollydent, error) {
-	if accessKey == "" || secretKey == "" {
-		return nil, errors.New("Access key or Secret key are invalid")
-	}
-
-	creds := credentials.NewStaticCredentials(accessKey, secretKey, "")
-	sess := session.New(&aws.Config{Credentials: creds})
-
-	if config == nil {
-		config = defaultConfig()
-	}
-
-	return &Pollydent{
-		config:      config,
-		playMutex:   new(sync.Mutex),
-		sess:        sess,
-		audioConfig: &PollyAudioConfig{},
-	}, nil
-}
-
-func (p *Pollydent) SendToPolly(config SpeechParams) (io.Reader, error) {
+func (p *PollySpeaker) Send(config SpeechParams) (io.Reader, error) {
 	var err error
 
 	if config.Speed == 0 {
@@ -82,6 +58,37 @@ func (p *Pollydent) SendToPolly(config SpeechParams) (io.Reader, error) {
 		return nil, err
 	}
 	return resp.AudioStream, nil
+}
+
+// Pollydent is structure to manage read aloud
+type Pollydent struct {
+	playMutex   *sync.Mutex
+	audioConfig AudioConfig
+	speaker     Speaker
+}
+
+func NewPollydentWithCloudTextToSpeech(config *PollyConfig) (*Pollydent, error) {
+	return nil, nil
+}
+
+// NewPollydent news Polly structure
+func NewPollydentWithPolly(accessKey, secretKey string, config *PollyConfig) (*Pollydent, error) {
+	if accessKey == "" || secretKey == "" {
+		return nil, errors.New("Access key or Secret key are invalid")
+	}
+
+	creds := credentials.NewStaticCredentials(accessKey, secretKey, "")
+	sess := session.New(&aws.Config{Credentials: creds})
+
+	if config == nil {
+		config = defaultConfig()
+	}
+
+	return &Pollydent{
+		playMutex:   new(sync.Mutex),
+		audioConfig: &PollyAudioConfig{},
+		speaker:     &PollySpeaker{config, sess},
+	}, nil
 }
 
 func (p *Pollydent) Play(reader io.Reader) (err error) {
@@ -133,6 +140,10 @@ func (p *Pollydent) Play(reader io.Reader) (err error) {
 	return
 }
 
+func (p *Pollydent) SendToServer(param SpeechParams) (io.Reader, error) {
+	return p.speaker.Send(param)
+}
+
 // ReadAloud reads aloud msg by Polly
 func (p *Pollydent) ReadAloud(msg string) (err error) {
 	if msgLen := len([]rune(msg)); msgLen > 1500 {
@@ -141,10 +152,10 @@ func (p *Pollydent) ReadAloud(msg string) (err error) {
 		return err
 	}
 
-	strm, err := p.SendToPolly(SpeechParams{Message: msg})
+	reader, err := p.speaker.Send(SpeechParams{Message: msg})
 	if err != nil {
 		return
 	}
-	p.Play(strm)
+	p.Play(reader)
 	return
 }
